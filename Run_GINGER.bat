@@ -1,10 +1,13 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "WORKDIR=%CD%"
+set "WORKDIR=%~dp0"
+cd /d "%WORKDIR%"
+
 set "MODEL=%WORKDIR%\GINGER_dataset-A.torchscript"
 set "VENV=%WORKDIR%\venv\Scripts\activate.bat"
 set "SPLIT=%WORKDIR%\splitfile.txt"
+set "CONFIG=%WORKDIR%\ginger_config.txt"
 
 echo ==========================
 echo GINGER RUN
@@ -17,6 +20,18 @@ echo Pairing defined in make_splitfile.py (filename-based matching)
 echo Output splitfile: splitfile.txt
 echo.
 
+REM ==========================
+REM LOAD CONFIG (if exists)
+REM ==========================
+if exist "%CONFIG%" (
+    for /f "usebackq tokens=1,2 delims==" %%A in ("%CONFIG%") do (
+        set "%%A=%%B"
+    )
+)
+
+REM ==========================
+REM MODEL SELECTION
+REM ==========================
 echo Model:
 echo %MODEL%
 echo.
@@ -40,7 +55,7 @@ echo.
 pause
 
 REM ==========================
-REM INPUT SELECTION MESSAGE
+REM INPUT FOLDERS
 REM ==========================
 echo.
 echo ==========================
@@ -49,9 +64,6 @@ echo (TP1 = earlier images, TP2 = later images)
 echo ==========================
 echo.
 
-REM --------------------------
-REM TP1 / TP2 selection
-REM --------------------------
 for /f "usebackq delims=" %%I in (`
 powershell -NoProfile -Command "Add-Type -AssemblyName System.Windows.Forms; $f=New-Object System.Windows.Forms.FolderBrowserDialog; $f.Description='Select TP1 folder'; if($f.ShowDialog() -eq 'OK'){ $f.SelectedPath }"
 `) do set TP1=%%I
@@ -78,9 +90,9 @@ echo TP2: %TP2%
 echo.
 pause
 
-REM --------------------------
-REM Environment
-REM --------------------------
+REM ==========================
+REM ENVIRONMENT
+REM ==========================
 call "%VENV%"
 
 set "TP1_PATH=%TP1%"
@@ -88,9 +100,9 @@ set "TP2_PATH=%TP2%"
 set "OUT_SPLIT=%SPLIT%"
 set "PYTHONPATH=%WORKDIR%;%WORKDIR%\src"
 
-REM --------------------------
-REM Splitfile
-REM --------------------------
+REM ==========================
+REM SPLITFILE
+REM ==========================
 echo.
 echo STEP 1: Building splitfile (TP1/TP2 pairing)
 python "%WORKDIR%\make_splitfile.py"
@@ -101,9 +113,9 @@ if errorlevel 1 (
     exit /b
 )
 
-REM --------------------------
-REM Inference
-REM --------------------------
+REM ==========================
+REM INFERENCE
+REM ==========================
 echo.
 echo STEP 2: Running inference
 echo Output will be written to:
@@ -115,6 +127,15 @@ if errorlevel 1 (
     pause
     exit /b
 )
+
+REM ==========================
+REM SAVE CONFIG (memory)
+REM ==========================
+(
+echo TP1=%TP1%
+echo TP2=%TP2%
+echo MODEL=%MODEL%
+) > "%CONFIG%"
 
 echo.
 echo DONE
